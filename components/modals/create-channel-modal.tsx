@@ -20,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useModal } from "@/hooks/use-modal-store";
 import {
   Select,
@@ -30,6 +30,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChannelType } from "@prisma/client";
+import qs from "query-string";
+import { useEffect } from "react";
 
 const formschema = z.object({
   name: z
@@ -44,23 +46,40 @@ const formschema = z.object({
 });
 
 export const CreateChannelModal = () => {
-  const { isOpen, onClose, type } = useModal();
+  const { isOpen, onClose, type, data } = useModal();
   const router = useRouter();
+  const params = useParams();
 
   const isModalOpen = isOpen && type === "createChannel";
+  const { channelType } = data;
 
   const form = useForm({
     resolver: zodResolver(formschema),
     defaultValues: {
       name: "",
-      type: ChannelType.TEXT,
+      type: channelType || ChannelType.TEXT,
     },
   });
+
+  useEffect(() => {
+    if (channelType) {
+      form.setValue("type", channelType);
+    } else {
+      form.setValue("type", ChannelType.TEXT);
+    }
+  }, [channelType, form]);
+
   const isLoading = form.formState.isSubmitting;
 
   const onSubmit = async (values: z.infer<typeof formschema>) => {
     try {
-      await axios.post("/api/channels", values);
+      const url = qs.stringifyUrl({
+        url: "/api/channels",
+        query: {
+          serverId: params?.serverId,
+        },
+      });
+      await axios.post(url, values);
       form.reset();
       router.refresh();
       onClose();
